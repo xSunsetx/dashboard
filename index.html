@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LINEA/EIGEN Dashboard</title>
+<style>
+:root{--bg:#0f0f0f;--bg2:#1a1a1a;--bg3:#242424;--border:#2e2e2e;--text:#e8e8e8;--text2:#888;--text3:#444;--up:#26a69a;--down:#ef5350;--blue:#378ADD;--warn-bg:#2a1f00;--warn:#f0a500;--sell-bg:#2a0000;--sell:#e05252;--buy-bg:#001a0d;--buy:#26a69a;--r:8px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;}
+.wrap{max-width:1200px;margin:0 auto;padding:16px 20px;}
+.hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.hdr h1{font-size:18px;font-weight:500;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0;}
+.dot.live{background:var(--up);box-shadow:0 0 6px var(--up);animation:pulse 2s infinite;}
+.dot.warn{background:var(--warn);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.src{font-size:12px;color:var(--text2);}
+.upd{font-size:12px;color:var(--text3);margin-left:auto;}
+.btns{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center;}
+button{font-size:13px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--border);background:var(--bg2);color:var(--text);cursor:pointer;}
+button:hover{background:var(--bg3);}
+button.act{background:#1a3a5c;color:#5aadff;border-color:#2a5a8c;}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;}
+.clbl{font-size:11px;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em;}
+.cval{font-size:22px;font-weight:500;}
+.csub{font-size:12px;margin-top:4px;}
+.sigbox{border-radius:var(--r);padding:11px 16px;margin-bottom:12px;font-size:14px;font-weight:500;}
+.sigbox .rsn{font-size:12px;font-weight:400;opacity:.75;margin-top:3px;}
+.sh{background:var(--warn-bg);color:var(--warn);}
+.ss{background:var(--sell-bg);color:var(--sell);}
+.sb{background:var(--buy-bg);color:var(--buy);}
+.stitle{font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 7px;}
+.inds{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
+.ind{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:9px 12px;}
+.ilbl{font-size:11px;color:var(--text2);margin-bottom:3px;}
+.ival{font-size:16px;font-weight:500;}
+.bar{height:3px;border-radius:2px;margin-top:6px;background:var(--bg3);position:relative;overflow:hidden;}
+.bfill{position:absolute;left:0;top:0;height:100%;border-radius:2px;transition:width .4s;}
+.lvls{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:2px 14px;margin-bottom:12px;}
+.lr{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:13px;border-bottom:1px solid var(--border);}
+.lr:last-child{border-bottom:none;}
+.lr.cur{background:rgba(55,138,221,.07);margin:0 -14px;padding:7px 14px;}
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.cbox{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;}
+.cbox.full{grid-column:1/-1;}
+.ctit{font-size:12px;color:var(--text2);margin-bottom:6px;display:flex;justify-content:space-between;}
+canvas{display:block;width:100%;}
+.cr{display:flex;gap:8px;align-items:center;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;flex-wrap:wrap;}
+.cr label{font-size:12px;color:var(--text2);}
+.cr input{background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 10px;font-size:13px;}
+.up{color:var(--up)}.dn{color:var(--down)}.neu{color:var(--text2)}
+.errbar{background:var(--sell-bg);color:var(--sell);border-radius:var(--r);padding:8px 14px;font-size:12px;margin-bottom:10px;display:none;white-space:pre-wrap;}
+@media(max-width:640px){.cards{grid-template-columns:1fr}.inds{grid-template-columns:repeat(2,1fr)}.cgrid{grid-template-columns:1fr}.cbox.full{grid-column:1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="dot" id="dot"></div>
+    <h1>LINEA / EIGEN</h1>
+    <span class="src" id="src">Подключение...</span>
+    <span class="upd" id="upd">—</span>
+  </div>
+  <div class="btns">
+    <button onclick="setTf('1m')"  id="b1m">1м</button>
+    <button onclick="setTf('3m')"  id="b3m">3м</button>
+    <button onclick="setTf('5m')"  id="b5m">5м</button>
+    <button onclick="setTf('15m')" id="b15m" class="act">15м</button>
+    <button onclick="setTf('1h')"  id="b1h">1ч</button>
+    <button onclick="setTf('4h')"  id="b4h">4ч</button>
+    <button onclick="setTf('1d')"  id="b1d">1д</button>
+    <button onclick="reloadAll()" style="margin-left:auto">↺ Обновить</button>
+  </div>
+  <div class="errbar" id="err"></div>
+  <div class="cards">
+    <div class="card"><div class="clbl">LINEA / USDT</div><div class="cval" id="lp">—</div><div class="csub" id="lc">—</div></div>
+    <div class="card"><div class="clbl">EIGEN / USDT</div><div class="cval" id="ep">—</div><div class="csub" id="ec">—</div></div>
+    <div class="card"><div class="clbl">LINEA / EIGEN кросс</div><div class="cval" id="cp">—</div><div class="csub" id="cs">—</div></div>
+  </div>
+  <div id="sig" class="sigbox sh"><div id="sm">⏳ Загружаю...</div><div class="rsn" id="sr"></div></div>
+  <div class="stitle">Индикаторы · <span id="tflbl">15м</span></div>
+  <div class="inds">
+    <div class="ind"><div class="ilbl">RSI LINEA</div><div class="ival" id="rl">—</div><div class="bar"><div class="bfill" id="rlb" style="width:50%;background:var(--text3)"></div></div></div>
+    <div class="ind"><div class="ilbl">RSI EIGEN</div><div class="ival" id="re">—</div><div class="bar"><div class="bfill" id="reb" style="width:50%;background:var(--text3)"></div></div></div>
+    <div class="ind"><div class="ilbl">MACD LINEA</div><div class="ival" id="ml">—</div></div>
+    <div class="ind"><div class="ilbl">MACD EIGEN</div><div class="ival" id="me">—</div></div>
+  </div>
+  <div class="stitle">Уровни LINEA/EIGEN</div>
+  <div class="lvls">
+    <div class="lr"><span style="color:var(--down)">Сопротивление 2</span><span>0.02300</span><span id="dr2" class="neu">—</span></div>
+    <div class="lr"><span style="color:var(--down)">Сопротивление 1</span><span>0.02260</span><span id="dr1" class="neu">—</span></div>
+    <div class="lr cur"><span style="font-weight:500">▶ Текущий</span><span id="cc">—</span><span>—</span></div>
+    <div class="lr"><span style="color:var(--text2)">Покупка 28.04</span><span>0.02015</span><span id="de" class="neu">—</span></div>
+    <div class="lr"><span style="color:var(--up)">Поддержка</span><span>0.01900</span><span id="ds" class="neu">—</span></div>
+  </div>
+  <div class="stitle">Графики (свечи)</div>
+  <div class="cgrid">
+    <div class="cbox full"><div class="ctit">LINEA/EIGEN кросс <span id="ctc">—</span></div><canvas id="crossChart" height="220"></canvas></div>
+    <div class="cbox"><div class="ctit">LINEA/USDT <span id="ctl">—</span></div><canvas id="lineaChart" height="180"></canvas></div>
+    <div class="cbox"><div class="ctit">EIGEN/USDT <span id="cte">—</span></div><canvas id="eigenChart" height="180"></canvas></div>
+  </div>
+  <div class="stitle">Добавить уровень</div>
+  <div class="cr">
+    <label>Метка:</label><input type="text" id="cl" placeholder="Покупка 02.05" style="width:140px">
+    <label>Цена кросса:</label><input type="number" id="cv" placeholder="0.02100" step="0.000001" style="width:120px">
+    <button onclick="addCust()">Добавить →</button>
+    <button onclick="clearCust()">Очистить</button>
+  </div>
+  <div id="custb"></div>
+</div>
+
+<script>
+// ══ Candlestick chart — чистый Canvas, без зависимостей ══════════════════════
+function drawCandles(canvasId, candles, livePrice) {
+  var canvas = document.getElementById(canvasId);
+  if (!canvas || !candles || candles.length === 0) return;
+  var dpr = window.devicePixelRatio || 1;
+  var W = canvas.parentElement.clientWidth - 24;
+  var H = parseInt(canvas.getAttribute('height')) || 200;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  var ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // Update last candle with live price
+  var data = candles.slice(-Math.floor(W / 6));
+  if (livePrice && data.length > 0) {
+    var last = data[data.length - 1];
+    data[data.length - 1] = {
+      time: last.time, open: last.open,
+      high: Math.max(last.high, livePrice),
+      low: Math.min(last.low, livePrice),
+      close: livePrice
+    };
+  }
+
+  var minP = Infinity, maxP = -Infinity;
+  data.forEach(function(c) { minP = Math.min(minP, c.low); maxP = Math.max(maxP, c.high); });
+  var pad = (maxP - minP) * 0.05 || 0.000001;
+  minP -= pad; maxP += pad;
+  var range = maxP - minP;
+
+  var bodyW = Math.max(1, Math.floor(W / data.length) - 2);
+  var spacing = Math.floor(W / data.length);
+
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.strokeStyle = '#1e1e1e';
+  ctx.lineWidth = 1;
+  for (var g = 0; g <= 4; g++) {
+    var gy = Math.floor(H * g / 4) + 0.5;
+    ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
+    var price = maxP - (range * g / 4);
+    ctx.fillStyle = '#555';
+    ctx.font = '10px sans-serif';
+    ctx.fillText(price.toFixed(6), 2, gy - 2);
+  }
+
+  data.forEach(function(c, i) {
+    var x = Math.floor(i * spacing + spacing / 2);
+    var yH = Math.floor((maxP - c.high) / range * H);
+    var yL = Math.floor((maxP - c.low) / range * H);
+    var yO = Math.floor((maxP - c.open) / range * H);
+    var yC = Math.floor((maxP - c.close) / range * H);
+    var bull = c.close >= c.open;
+    var col = bull ? '#26a69a' : '#ef5350';
+
+    // Wick
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, yH);
+    ctx.lineTo(x, yL);
+    ctx.stroke();
+
+    // Body
+    var bodyTop = Math.min(yO, yC);
+    var bodyH = Math.max(1, Math.abs(yC - yO));
+    ctx.fillStyle = col;
+    ctx.fillRect(x - Math.floor(bodyW / 2), bodyTop, bodyW, bodyH);
+  });
+}
+
+// ══ State ════════════════════════════════════════════════════════════════════
+var tf = '15m';
+var liveLP = 0, liveEP = 0, open24L = 0, open24E = 0, crossOpen24 = 0;
+var ws = null, pollTimer = null, wsOK = false;
+var cdata = {linea:[], eigen:[], cross:[]};
+var customLevels = [];
+var TFL = {'1m':'1м','3m':'3м','5m':'5м','15m':'15м','1h':'1ч','4h':'4ч','1d':'1д'};
+var OTF = {'1m':'1m','3m':'3m','5m':'5m','15m':'15m','1h':'1H','4h':'4H','1d':'1D'};
+var BN = ['https://api.binance.com','https://api1.binance.com','https://api2.binance.com','https://api3.binance.com'];
+
+function showErr(m){var e=document.getElementById('err');e.textContent=m;e.style.display='block';}
+function hideErr(){document.getElementById('err').style.display='none';}
+function pct(c,l){var d=((c-l)/l*100);return{text:(d>0?'+':'')+d.toFixed(2)+'%',cls:d>0?'up':'dn'};}
+function rsiCol(v){return v>70?'var(--down)':v<30?'var(--up)':'var(--text)';}
+
+function calcRSI(c,p){
+  p=p||14; if(c.length<p+1)return null;
+  var g=0,l=0,i,d;
+  for(i=1;i<=p;i++){d=c[i]-c[i-1];d>0?g+=d:l-=d;}
+  var ag=g/p,al=l/p;
+  for(i=p+1;i<c.length;i++){d=c[i]-c[i-1];ag=(ag*(p-1)+(d>0?d:0))/p;al=(al*(p-1)+(d<0?-d:0))/p;}
+  return al===0?100:100-100/(1+ag/al);
+}
+function ema(a,p){var k=2/(p+1),r=[a[0]],i;for(i=1;i<a.length;i++)r.push(a[i]*k+r[i-1]*(1-k));return r;}
+function calcMACD(c){
+  if(c.length<35)return null;
+  var e12=ema(c,12),e26=ema(c,26),ml=e12.map(function(v,i){return v-e26[i];}),sig=ema(ml.slice(25),9);
+  return ml[ml.length-1]-sig[sig.length-1];
+}
+
+// ══ Fetch ════════════════════════════════════════════════════════════════════
+async function get(url) {
+  var r = await fetch(url, {signal: AbortSignal.timeout(5000)});
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+async function fetchTickers() {
+  var i, r;
+  for (i = 0; i < BN.length; i++) {
+    try {
+      var a = await get(BN[i]+'/api/v3/ticker/24hr?symbol=LINEAUSDT');
+      var b = await get(BN[i]+'/api/v3/ticker/24hr?symbol=EIGENUSDT');
+      return {lp:+a.lastPrice,ep:+b.lastPrice,lo:+a.openPrice,eo:+b.openPrice,src:'Binance'};
+    } catch(e) {}
+  }
+  try {
+    var a = await get('https://www.okx.com/api/v5/market/ticker?instId=LINEA-USDT-SWAP');
+    var b = await get('https://www.okx.com/api/v5/market/ticker?instId=EIGEN-USDT-SWAP');
+    if(a.code==='0'&&b.code==='0') return {lp:+a.data[0].last,ep:+b.data[0].last,lo:+a.data[0].open24h,eo:+b.data[0].open24h,src:'OKX'};
+  } catch(e) {}
+  try {
+    var a = await get('https://api.bybit.com/v5/market/tickers?category=spot&symbol=LINEAUSDT');
+    var b = await get('https://api.bybit.com/v5/market/tickers?category=spot&symbol=EIGENUSDT');
+    if(a.retCode===0&&b.retCode===0) return {lp:+a.result.list[0].lastPrice,ep:+b.result.list[0].lastPrice,lo:+a.result.list[0].prevPrice24h,eo:+b.result.list[0].prevPrice24h,src:'Bybit'};
+  } catch(e) {}
+  throw new Error('Binance / OKX / Bybit — все недоступны');
+}
+
+async function fetchKlines(sym, interval, limit) {
+  var i;
+  for (i = 0; i < BN.length; i++) {
+    try {
+      var d = await get(BN[i]+'/api/v3/klines?symbol='+sym+'USDT&interval='+interval+'&limit='+limit);
+      return d.map(function(k){return{time:Math.floor(k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4]};});
+    } catch(e) {}
+  }
+  try {
+    var inst = sym==='LINEA'?'LINEA-USDT-SWAP':'EIGEN-USDT-SWAP';
+    var d = await get('https://www.okx.com/api/v5/market/candles?instId='+inst+'&bar='+(OTF[interval]||'15m')+'&limit='+limit);
+    if(d.code==='0') return d.data.map(function(k){return{time:Math.floor(+k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4]};}).reverse();
+  } catch(e) {}
+  try {
+    var bInt={'1m':'1','3m':'3','5m':'5','15m':'15','1h':'60','4h':'240','1d':'D'}[interval]||'15';
+    var d = await get('https://api.bybit.com/v5/market/kline?category=spot&symbol='+sym+'USDT&interval='+bInt+'&limit='+limit);
+    if(d.retCode===0) return d.result.list.map(function(k){return{time:Math.floor(+k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4]};}).reverse();
+  } catch(e) {}
+  throw new Error('Свечи '+sym+' недоступны');
+}
+
+// ══ Signal ═══════════════════════════════════════════════════════════════════
+function signal(cross, rL, rE, mL, mE) {
+  var rsn=[], score=0;
+  if(cross>=0.02300){score-=3;rsn.push('кросс у R2 0.023');}
+  else if(cross>=0.02260){score-=2;rsn.push('кросс у R1 0.0226');}
+  else if(cross>=0.02080){score-=1;rsn.push('кросс в верхней части');}
+  else if(cross<=0.01900){score+=3;rsn.push('кросс у поддержки 0.019');}
+  else if(cross<=0.01970){score+=1;rsn.push('кросс в нижней части');}
+  if(rL!==null&&rE!==null){
+    var d=rL-rE;
+    if(d>12){score-=2;rsn.push('Linea RSI перегрета vs Eigen (+'+d.toFixed(0)+')');}
+    else if(d<-12){score+=2;rsn.push('Eigen RSI перегрет vs Linea ('+d.toFixed(0)+')');}
+    if(rL>72)rsn.push('RSI Linea >72'), score--;
+    if(rE<28)rsn.push('RSI Eigen <28'), score++;
+    if(rL<28)rsn.push('RSI Linea <28'), score++;
+    if(rE>72)rsn.push('RSI Eigen >72'), score--;
+  }
+  if(mL!==null&&mE!==null){
+    if(mL>0&&mE<0){score--;rsn.push('MACD: Linea▲ Eigen▼');}
+    if(mL<0&&mE>0){score++;rsn.push('MACD: Eigen▲ Linea▼');}
+  }
+  if(score<=-2)return{cls:'sigbox ss',txt:'⚠ Рассмотри свап Linea → Eigen',rsn:rsn.slice(0,3),score:score};
+  if(score>=2) return{cls:'sigbox sb',txt:'✓ Держи Linea',rsn:rsn.slice(0,3),score:score};
+  return{cls:'sigbox sh',txt:'⏳ Нейтральная зона — наблюдай',rsn:rsn.slice(0,3),score:score};
+}
+
+// ══ UI update ═════════════════════════════════════════════════════════════════
+function ui() {
+  if(!liveLP||!liveEP)return;
+  var cross=liveLP/liveEP;
+  document.getElementById('lp').textContent=liveLP.toFixed(6);
+  var lch=open24L?((liveLP-open24L)/open24L*100):0;
+  document.getElementById('lc').innerHTML='<span class="'+(lch>=0?'up':'dn')+'">'+(lch>=0?'+':'')+lch.toFixed(2)+'%</span> 24ч';
+  document.getElementById('ep').textContent=liveEP.toFixed(4);
+  var ech=open24E?((liveEP-open24E)/open24E*100):0;
+  document.getElementById('ec').innerHTML='<span class="'+(ech>=0?'up':'dn')+'">'+(ech>=0?'+':'')+ech.toFixed(2)+'%</span> 24ч';
+  document.getElementById('cp').textContent=cross.toFixed(5);
+  var cch=crossOpen24?((cross-crossOpen24)/crossOpen24*100):0;
+  document.getElementById('cs').innerHTML='<span class="'+(cch>=0?'up':'dn')+'">'+(cch>=0?'+':'')+cch.toFixed(2)+'%</span> 24ч';
+  document.getElementById('cc').textContent=cross.toFixed(5);
+  var r1=pct(cross,0.02260);document.getElementById('dr1').textContent=r1.text;document.getElementById('dr1').className=r1.cls;
+  var r2=pct(cross,0.02300);document.getElementById('dr2').textContent=r2.text;document.getElementById('dr2').className=r2.cls;
+  var en=pct(cross,0.02015);document.getElementById('de').textContent=en.text;document.getElementById('de').className=en.cls;
+  var s1=pct(cross,0.01900);document.getElementById('ds').textContent=s1.text;document.getElementById('ds').className=s1.cls;
+  var lc=cdata.linea.map(function(c){return c.close;}), ec=cdata.eigen.map(function(c){return c.close;});
+  var rL=calcRSI(lc),rE=calcRSI(ec),mL=calcMACD(lc),mE=calcMACD(ec);
+  if(rL!==null){document.getElementById('rl').textContent=rL.toFixed(1);document.getElementById('rl').style.color=rsiCol(rL);document.getElementById('rlb').style.cssText='width:'+rL+'%;background:'+(rL>70?'var(--down)':rL<30?'var(--up)':'var(--blue)');}
+  if(rE!==null){document.getElementById('re').textContent=rE.toFixed(1);document.getElementById('re').style.color=rsiCol(rE);document.getElementById('reb').style.cssText='width:'+rE+'%;background:'+(rE>70?'var(--down)':rE<30?'var(--up)':'var(--blue)');}
+  if(mL!==null){document.getElementById('ml').textContent=(mL>0?'▲ ':'▼ ')+mL.toFixed(8);document.getElementById('ml').style.color=mL>0?'var(--up)':'var(--down)';}
+  if(mE!==null){document.getElementById('me').textContent=(mE>0?'▲ ':'▼ ')+mE.toFixed(8);document.getElementById('me').style.color=mE>0?'var(--up)':'var(--down)';}
+  var sig=signal(cross,rL,rE,mL,mE);
+  document.getElementById('sig').className=sig.cls;
+  document.getElementById('sm').textContent=sig.txt+'  (score:'+(sig.score>0?'+':'')+sig.score+')';
+  document.getElementById('sr').textContent=sig.rsn.join(' · ');
+  // Redraw candles with live price
+  if(cdata.linea.length>0){
+    drawCandles('lineaChart', cdata.linea, liveLP);
+    drawCandles('eigenChart', cdata.eigen, liveEP);
+    drawCandles('crossChart', cdata.cross, cross);
+    document.getElementById('ctc').textContent=cross.toFixed(5);
+  }
+  document.getElementById('upd').textContent=new Date().toLocaleTimeString('ru');
+  if(customLevels.length)renderCust();
+}
+
+// ══ WebSocket ═════════════════════════════════════════════════════════════════
+function connectWS() {
+  try {
+    ws = new WebSocket('wss://stream.binance.com:9443/stream?streams=lineausdt@miniTicker/eigenusdt@miniTicker');
+    var t = setTimeout(function(){if(!wsOK){ws.close();startPoll('WS таймаут');}}, 5000);
+    ws.onopen = function(){
+      clearTimeout(t); wsOK=true;
+      document.getElementById('dot').className='dot live';
+      document.getElementById('src').textContent='Live · Binance WebSocket';
+      hideErr();
+      if(pollTimer){clearInterval(pollTimer);pollTimer=null;}
+    };
+    ws.onmessage = function(e){
+      try{
+        var d=JSON.parse(e.data).data; if(!d)return;
+        if(d.s==='LINEAUSDT')liveLP=+d.c;
+        if(d.s==='EIGENUSDT')liveEP=+d.c;
+        if(liveLP&&liveEP)ui();
+      }catch(e){}
+    };
+    ws.onclose = function(){wsOK=false; startPoll('WS закрылся');};
+    ws.onerror = function(){wsOK=false;};
+  } catch(e){startPoll('WS ошибка');}
+}
+
+// ══ Polling ═══════════════════════════════════════════════════════════════════
+async function poll() {
+  try {
+    var t = await fetchTickers();
+    liveLP=t.lp; liveEP=t.ep;
+    if(!open24L){open24L=t.lo;open24E=t.eo;crossOpen24=t.lo/t.eo;}
+    document.getElementById('dot').className='dot warn';
+    document.getElementById('src').textContent='Поллинг · '+t.src;
+    hideErr(); ui();
+  } catch(e) {
+    showErr('❌ '+e.message+'\nBinance, OKX и Bybit все недоступны.');
+    document.getElementById('dot').className='dot';
+    document.getElementById('src').textContent='Нет соединения';
+  }
+}
+function startPoll(r){
+  if(wsOK)return;
+  if(!pollTimer){poll();pollTimer=setInterval(poll,5000);}
+}
+
+// ══ Candles ═══════════════════════════════════════════════════════════════════
+async function reloadAll() {
+  document.getElementById('ctl').textContent='...';
+  document.getElementById('cte').textContent='...';
+  hideErr();
+  try {
+    var lim = tf==='1d'?90:150;
+    var kL = await fetchKlines('LINEA',tf,lim);
+    var kE = await fetchKlines('EIGEN',tf,lim);
+    cdata.linea=kL; cdata.eigen=kE;
+    var mn=Math.min(kL.length,kE.length), i;
+    cdata.cross=[];
+    for(i=0;i<mn;i++){
+      var l=kL[i],e=kE[i];
+      cdata.cross.push({time:l.time,open:l.open/e.open,high:l.high/e.low,low:l.low/e.high,close:l.close/e.close});
+    }
+    var ll=kL[kL.length-1], le=kE[kE.length-1];
+    document.getElementById('ctl').textContent=ll.close.toFixed(6);
+    document.getElementById('cte').textContent=le.close.toFixed(4);
+    drawCandles('lineaChart', cdata.linea, liveLP||null);
+    drawCandles('eigenChart', cdata.eigen, liveEP||null);
+    drawCandles('crossChart', cdata.cross, (liveLP&&liveEP)?liveLP/liveEP:null);
+    if(!open24L){
+      try{
+        var t=await fetchTickers();
+        open24L=t.lo;open24E=t.eo;crossOpen24=t.lo/t.eo;
+        liveLP=t.lp;liveEP=t.ep;
+        ui();
+      }catch(e){}
+    }
+  } catch(e) {
+    showErr('Свечи: '+e.message);
+    document.getElementById('ctl').textContent='Ошибка';
+  }
+}
+
+function setTf(t){
+  tf=t;
+  document.querySelectorAll('.btns button').forEach(function(b){b.classList.remove('act');});
+  var el=document.getElementById('b'+t); if(el)el.classList.add('act');
+  document.getElementById('tflbl').textContent=TFL[t]||t;
+  reloadAll();
+}
+
+// ══ Custom levels ═════════════════════════════════════════════════════════════
+function addCust(){
+  var lbl=document.getElementById('cl').value.trim()||'Уровень';
+  var val=parseFloat(document.getElementById('cv').value);
+  if(isNaN(val)){alert('Введи цену');return;}
+  customLevels.push({lbl:lbl,val:val});
+  document.getElementById('cl').value=''; document.getElementById('cv').value='';
+  renderCust();
+}
+function clearCust(){customLevels=[];document.getElementById('custb').innerHTML='';}
+function renderCust(){
+  var cross=liveLP&&liveEP?liveLP/liveEP:0;
+  var b=document.getElementById('custb'); b.innerHTML='';
+  if(!customLevels.length)return;
+  var w=document.createElement('div'); w.className='lvls'; w.style.marginTop='8px';
+  customLevels.forEach(function(lvl){
+    var d=cross?pct(cross,lvl.val):{text:'—',cls:'neu'};
+    var row=document.createElement('div'); row.className='lr';
+    row.innerHTML='<span style="color:var(--blue)">'+lvl.lbl+'</span><span>'+lvl.val.toFixed(5)+'</span><span class="'+d.cls+'">'+d.text+'</span>';
+    w.appendChild(row);
+  });
+  b.appendChild(w);
+}
+
+// ══ Resize canvases ══════════════════════════════════════════════════════════
+window.addEventListener('resize', function(){
+  if(cdata.linea.length>0){
+    drawCandles('lineaChart', cdata.linea, liveLP||null);
+    drawCandles('eigenChart', cdata.eigen, liveEP||null);
+    drawCandles('crossChart', cdata.cross, (liveLP&&liveEP)?liveLP/liveEP:null);
+  }
+});
+
+// ══ Start ═════════════════════════════════════════════════════════════════════
+connectWS();
+reloadAll();
+</script>
+</body>
+</html>
